@@ -1,0 +1,58 @@
+# ======================
+# Python
+# ======================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# ======================
+# Environment variables
+# ======================
+.env
+
+# ======================
+# FastAPI / uploads
+# ======================
+uploads/
+*.log
+
+# ======================
+# Database / migrations cache
+# ======================
+alembic/__pycache__/
+alembic/versions/__pycache__/
+
+# ======================
+# IDEs
+# ======================
+.vscode/
+.idea/
+
+# ======================
+# OS
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# Docker
+# ======================
+*.pid
+*.sock
+
+# ======================
+# pytest / cache
+# ======================
+.pytest_cache/
+
+# ======================
+# coverage
+# ======================
+htmlcov/
+.coverage
