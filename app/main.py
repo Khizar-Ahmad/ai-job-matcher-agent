@@ -1,13 +1,38 @@
 from fastapi import FastAPI
-
 from app.routes.auth_routes import router as auth_router
 from app.routes.ai_routes import router as ai_router
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from app.agents.graph import buildAgenticWorkflow
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg import AsyncConnection
+import os
 
 
-app = FastAPI(
-    title="AI Job Application Agent"
-)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    conn = await AsyncConnection.connect(
+        os.environ["checkpointers_db"],
+         autocommit=True
+    )
+
+    checkpointer = AsyncPostgresSaver(conn)
+    await checkpointer.setup()
+
+    app.state.job_graph = await buildAgenticWorkflow(
+        checkpointer
+    )
+    
+    app.state.conn = conn
+
+    yield
+
+    await app.state.conn.close()
+
+# app = FastAPI(
+#     title="AI Job Application Agent"
+# )
+app = FastAPI(title="AI Job Application Agent",lifespan=lifespan)
 
 origins = [
     # "http://localhost.tiangolo.com",

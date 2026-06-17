@@ -6,7 +6,7 @@ from fastapi import (
     UploadFile,
     File,
     Form,
-    Depends
+    Depends, HTTPException,Request
 )
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,16 +14,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.dependencies.auth_dependency import get_current_user
 from app.utils.file_parser import parse_resume
-from app.agents.graph import job_graph
+# from app.agents.graph import job_graph
+# from app.main import job_graph
 from app.services.resume_service import ResumeService
 
 from app.services.question_service import QuestionService
+from langgraph.types import Command
+
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
 
 @router.post("/process")
 async def process_job_application(
+    request: Request,
     company_name: str = Form(...),
     job_title: str = Form(...),
     job_description: str = Form(...),
@@ -32,10 +36,12 @@ async def process_job_application(
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    
+    thread_id = f"user_{current_user.id}_{uuid.uuid4()}"
+    config = {"configurable": {"thread_id": thread_id}}
     resume_text = await ResumeService.upload_and_extract_text(
         resume
     )
+    print(f"Thread Id: {thread_id}")
 
     # file_extension = resume.filename.split(".")[-1]
 
@@ -48,7 +54,7 @@ async def process_job_application(
     #     file.write(content)
 
     # resume_text = await parse_resume(file_path)
-
+    job_graph = request.app.state.job_graph
     state = {
         "user_profile": {
             "name": current_user.name,
@@ -64,7 +70,7 @@ async def process_job_application(
         "requirements": requirements,
     }
 
-    result = await job_graph.ainvoke(state)
+    result = await job_graph.ainvoke(state,config=config)
 
     # os.remove(file_path)
 
@@ -72,8 +78,43 @@ async def process_job_application(
         "match_percentage": result["match_percentage"],
         "resume_skills": result["resume_skills"],
         "job_skills": result["job_skills"],
-        "cover_letter": result["cover_letter"],
+        # "cover_letter": result["cover_letter"],
+        "thread_id": thread_id, 
     }
+
+@router.post("/resume/{thread_id}")
+async def resume_job_application(
+    request:Request,
+    thread_id: str,
+    feedback: str = Form(""),
+    finalize: bool = Form(False),
+    current_user=Depends(get_current_user)
+):
+    config = {"configurable": {"thread_id": thread_id}}
+    job_graph = request.app.state.job_graph
+
+    await job_graph.aupdate_state(
+        config,
+        {"human_feedback": feedback, "regenerate_decision": "done" if finalize else "continue"}
+    )
+    print("Before call")
+    result = await job_graph.ainvoke(
+        # Command(resume={"feedback": feedback}),
+        None,
+        config=config
+    )
+    print("After call")
+
+    
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+    if result["cover_letter"] == "__skipped__":
+        return {
+            "cover_letter": None,
+            "message": "Cover letter generation was skipped per your feedback."
+        }
+    
+    return {"cover_letter": result["cover_letter"]}
 
 
 @router.post("/questions")

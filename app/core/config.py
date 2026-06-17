@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     DEBUG: bool
 
     DATABASE_URL: str
+    checkpointers_db:str
 
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str
