@@ -37,6 +37,8 @@ app = FastAPI(title="AI Job Application Agent",lifespan=lifespan)
 origins = [
     # "http://localhost.tiangolo.com",
     # "https://localhost.tiangolo.com",
+    "https://ai-job-matcher-by-khizarahmad.netlify.app/",
+    "http://ai-job-matcher-by-khizarahmad.netlify.app/",
     "http://localhost:3000",  # Next.js dev server
     "http://127.0.0.1:3000",
     "http://localhost:5173",  # Next.js dev server
